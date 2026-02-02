@@ -1,5 +1,4 @@
-# Projeto PBL --- Disciplina de Compiladores
-
+# Projeto LPM - GCET525
 ## Título do Projeto
 
 **Construção de um Compilador Funcional para uma Linguagem de
