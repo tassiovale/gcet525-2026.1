@@ -13,7 +13,8 @@ palavras_reservadas = {
     "false": "LIT_FALSE",
 }
 
-tokens = ["TK_ID", "INT_LIT", "OP_OR", "OP_AND", "OP_NOT", "OP_EQ", "OP_NE", "OP_GE", "OP_LE", "OP_GT", "OP_LT", "OP_ASSIGN", "OP_PLUS", "OP_MINUS", "OP_MULT", "OP_DIV", 
+tokens = ["TK_ID", "INT_LIT", "OP_OR", "OP_AND", "OP_NOT", "OP_EQ", "OP_NE", "OP_GE", 
+          "OP_LE", "OP_GT", "OP_LT", "OP_ASSIGN", "OP_PLUS", "OP_MINUS", "OP_MULT", "OP_DIV", 
           "LBRACE", "RBRACE", "LPAREN", "RPAREN", "SEMICOLON", "COMMA"] + list(palavras_reservadas.values())
 
 ## regex
@@ -44,9 +45,9 @@ def t_COMMENT(t):
     r"//[^\n]*"
     pass
 
-## literal
+## digito
 def t_INT_LIT(t):
-    r'[+-]?[0-9]+'
+    r'[0-9]+'
     t.value = int(t.value)
     return t
 
