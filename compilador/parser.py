@@ -13,10 +13,193 @@ class ParserError(Exception):
     """Raised when the parser finds invalid syntax."""
 
 
+# =============================================================================
+#  Nós da AST
+#  Cada classe representa um tipo de nó definido no design:
+#
+#  Program / Block / VarDecl / Assignment / IfStmt / WhileStmt /
+#  PrintStmt / ReadStmt / BinaryOp / UnaryOp / Identifier / Literal
+# =============================================================================
+
+class ASTNode:
+    """Base para todos os nós da AST."""
+    def to_dict(self):
+        raise NotImplementedError
+
+    def __repr__(self):
+        return json.dumps(self.to_dict(), indent=2)
+
+
+# ── Estrutura do programa ────────────────────────────────────────────────────
+
+class Program(ASTNode):
+    """Raiz da árvore: Program └── Block"""
+    def __init__(self, block: "Block"):
+        self.block = block
+
+    def to_dict(self):
+        return {"node": "Program", "block": self.block.to_dict()}
+
+
+class Block(ASTNode):
+    """Sequência de comandos entre { }"""
+    def __init__(self, commands: list):
+        self.commands = commands
+
+    def to_dict(self):
+        return {"node": "Block", "commands": [c.to_dict() for c in self.commands]}
+
+
+# ── Comandos ─────────────────────────────────────────────────────────────────
+
+class VarDecl(ASTNode):
+    """Declaração: tipo nome [= expr] ;
+       VarDecl ├── Type: (KW_INT | KW_BOOL)  └── Name: TK_ID"""
+    def __init__(self, var_type: str, name: "Identifier", initializer=None):
+        self.var_type    = var_type
+        self.name        = name
+        self.initializer = initializer
+
+    def to_dict(self):
+        d = {"node": "VarDecl", "type": self.var_type, "name": self.name.to_dict()}
+        if self.initializer is not None:
+            d["initializer"] = self.initializer.to_dict()
+        return d
+
+
+class Assignment(ASTNode):
+    """Atribuição: target = value ;
+       Assignment ├── Target: TK_ID  └── Value: [Expression]"""
+    def __init__(self, target: "Identifier", value: ASTNode):
+        self.target = target
+        self.value  = value
+
+    def to_dict(self):
+        return {
+            "node":   "Assignment",
+            "target": self.target.to_dict(),
+            "value":  self.value.to_dict(),
+        }
+
+
+class IfStmt(ASTNode):
+    """if (cond) then_block [else else_block]
+       IfStmt ├── Condition  ├── Then: Block  └── Else: Block (opcional)"""
+    def __init__(self, condition: ASTNode, then_block: Block, else_block=None):
+        self.condition  = condition
+        self.then_block = then_block
+        self.else_block = else_block
+
+    def to_dict(self):
+        d = {
+            "node":       "IfStmt",
+            "condition":  self.condition.to_dict(),
+            "then_block": self.then_block.to_dict(),
+        }
+        if self.else_block is not None:
+            d["else_block"] = self.else_block.to_dict()
+        return d
+
+
+class WhileStmt(ASTNode):
+    """while (cond) body
+       WhileStmt ├── Condition  └── Body: Block"""
+    def __init__(self, condition: ASTNode, body: Block):
+        self.condition = condition
+        self.body      = body
+
+    def to_dict(self):
+        return {
+            "node":      "WhileStmt",
+            "condition": self.condition.to_dict(),
+            "body":      self.body.to_dict(),
+        }
+
+
+class PrintStmt(ASTNode):
+    """print(expr, ...) ;
+       PrintStmt └── Arguments: [[Expression]]"""
+    def __init__(self, arguments: list):
+        self.arguments = arguments
+
+    def to_dict(self):
+        return {
+            "node":      "PrintStmt",
+            "arguments": [a.to_dict() for a in self.arguments],
+        }
+
+
+class ReadStmt(ASTNode):
+    """read(variavel) ;
+       ReadStmt └── Target: TK_ID"""
+    def __init__(self, target: "Identifier"):
+        self.target = target
+
+    def to_dict(self):
+        return {"node": "ReadStmt", "target": self.target.to_dict()}
+
+
+# ── Expressões ───────────────────────────────────────────────────────────────
+
+class BinaryOp(ASTNode):
+    """Operação binária: left op right
+       BinaryOp ├── operator  ├── left  └── right"""
+    def __init__(self, operator: str, left: ASTNode, right: ASTNode):
+        self.operator = operator
+        self.left     = left
+        self.right    = right
+
+    def to_dict(self):
+        return {
+            "node":     "BinaryOp",
+            "operator": self.operator,
+            "left":     self.left.to_dict(),
+            "right":    self.right.to_dict(),
+        }
+
+
+class UnaryOp(ASTNode):
+    """Operação unária: op operand
+       UnaryOp ├── operator  └── operand"""
+    def __init__(self, operator: str, operand: ASTNode):
+        self.operator = operator
+        self.operand  = operand
+
+    def to_dict(self):
+        return {
+            "node":     "UnaryOp",
+            "operator": self.operator,
+            "operand":  self.operand.to_dict(),
+        }
+
+
+class Identifier(ASTNode):
+    """Referência a variável: TK_ID"""
+    def __init__(self, name: str):
+        self.name = name
+
+    def to_dict(self):
+        return {"node": "Identifier", "name": self.name}
+
+
+class Literal(ASTNode):
+    """Literal: INT_LIT | LIT_TRUE | LIT_FALSE"""
+    def __init__(self, kind: str, value):
+        self.kind  = kind   # "int" | "bool"
+        self.value = value
+
+    def to_dict(self):
+        return {"node": "Literal", "kind": self.kind, "value": self.value}
+
+
+# =============================================================================
+#  Parser
+# =============================================================================
+
 class RecursiveDescentParser:
     def __init__(self, source: str):
         self.source = source
-        self.lexer = build_lexer()
+        self.lexer  = build_lexer()
         self.lexer.input(source)
 
         self.tokens = []
@@ -27,8 +210,12 @@ class RecursiveDescentParser:
             self.tokens.append(token)
 
         eof_line = self.tokens[-1].lineno if self.tokens else 1
-        self.tokens.append(SimpleNamespace(type="EOF", value=None, lineno=eof_line, lexpos=len(source)))
+        self.tokens.append(
+            SimpleNamespace(type="EOF", value=None, lineno=eof_line, lexpos=len(source))
+        )
         self.pos = 0
+
+    # ── helpers ──────────────────────────────────────────────────────────────
 
     @property
     def current(self):
@@ -55,28 +242,32 @@ class RecursiveDescentParser:
         found = "EOF" if token.type == "EOF" else f"{token.type} ({token.value!r})"
         raise ParserError(f"Line {token.lineno}: {message}. Found {found}.")
 
-    def parse(self):
+    # ── ponto de entrada ─────────────────────────────────────────────────────
+
+    def parse(self) -> Program:
         ast = self.programa()
         self._expect("EOF", "Expected end of file")
         return ast
 
+    # ── regras gramaticais ────────────────────────────────────────────────────
+
     # programa = "main" bloco ;
-    def programa(self):
+    def programa(self) -> Program:
         self._expect("KW_MAIN", 'Expected "main" at program start')
         block = self.bloco()
-        return {"node": "program", "block": block}
+        return Program(block)
 
     # bloco = "{" { comando } "}" ;
-    def bloco(self):
+    def bloco(self) -> Block:
         self._expect("LBRACE", 'Expected "{" to start block')
         commands = []
         while self.current.type not in {"RBRACE", "EOF"}:
             commands.append(self.comando())
         self._expect("RBRACE", 'Expected "}" to end block')
-        return {"node": "block", "commands": commands}
+        return Block(commands)
 
     # comando = comando_atribuicao | comando_if | comando_while | entrada_saida ;
-    def comando(self):
+    def comando(self) -> ASTNode:
         token_type = self.current.type
 
         if token_type in {"KW_INT", "KW_BOOL", "TK_ID"}:
@@ -91,7 +282,7 @@ class RecursiveDescentParser:
         self._error("Expected a command")
 
     # entrada_saida = comando_read | comando_print ;
-    def entrada_saida(self):
+    def entrada_saida(self) -> ASTNode:
         if self.current.type == "KW_READ":
             return self.comando_read()
         if self.current.type == "KW_PRINT":
@@ -99,178 +290,176 @@ class RecursiveDescentParser:
         self._error('Expected "read" or "print" command')
 
     # comando_atribuicao =
-    #   tipo variavel [ "=" expressao ] ";" | variavel "=" expressao ;
-    def comando_atribuicao(self):
+    #   tipo variavel [ "=" expressao ] ";" | variavel "=" expressao ";" ;
+    def comando_atribuicao(self) -> ASTNode:
+        # Declaração com tipo
         if self.current.type in {"KW_INT", "KW_BOOL"}:
-            var_type = self._advance().value
-            variable = self.variavel()
+            var_type    = self._advance().value          # "int" ou "bool"
+            name_node   = self.variavel()                # Identifier
             initializer = None
             if self._match("OP_ASSIGN"):
                 initializer = self.expressao()
             self._expect("SEMICOLON", 'Expected ";" after declaration')
-            return {
-                "node": "declaration",
-                "var_type": var_type,
-                "variable": variable,
-                "initializer": initializer,
-            }
+            return VarDecl(var_type, name_node, initializer)
 
-        variable = self.variavel()
+        # Atribuição simples
+        target = self.variavel()                         # Identifier
         self._expect("OP_ASSIGN", 'Expected "=" in assignment')
         value = self.expressao()
-
         self._expect("SEMICOLON", 'Expected ";" after assignment')
-        return {"node": "assignment", "variable": variable, "value": value}
-
-    # tipo = "int" | "bool" ;
-    # (parsed inside comando_atribuicao)
+        return Assignment(target, value)
 
     # comando_if = "if" "(" expressao ")" bloco [ "else" bloco ] ;
-    def comando_if(self):
-        self._expect("KW_IF", 'Expected "if"')
-        self._expect("LPAREN", 'Expected "(" after if')
+    def comando_if(self) -> IfStmt:
+        self._expect("KW_IF",   'Expected "if"')
+        self._expect("LPAREN",  'Expected "(" after if')
         condition = self.expressao()
-        self._expect("RPAREN", 'Expected ")" after if condition')
+        self._expect("RPAREN",  'Expected ")" after if condition')
         then_block = self.bloco()
         else_block = None
         if self._match("KW_ELSE"):
             else_block = self.bloco()
-        return {
-            "node": "if",
-            "condition": condition,
-            "then_block": then_block,
-            "else_block": else_block,
-        }
+        return IfStmt(condition, then_block, else_block)
 
     # comando_while = "while" "(" expressao ")" bloco ;
-    def comando_while(self):
+    def comando_while(self) -> WhileStmt:
         self._expect("KW_WHILE", 'Expected "while"')
-        self._expect("LPAREN", 'Expected "(" after while')
+        self._expect("LPAREN",   'Expected "(" after while')
         condition = self.expressao()
-        self._expect("RPAREN", 'Expected ")" after while condition')
+        self._expect("RPAREN",   'Expected ")" after while condition')
         body = self.bloco()
-        return {"node": "while", "condition": condition, "body": body}
+        return WhileStmt(condition, body)
 
     # lista_expressoes = expressao { "," expressao } ;
-    def lista_expressoes(self):
+    def lista_expressoes(self) -> list:
         expressions = [self.expressao()]
         while self._match("COMMA"):
             expressions.append(self.expressao())
         return expressions
 
     # comando_print = "print" "(" [ lista_expressoes ] ")" ";" ;
-    def comando_print(self):
+    def comando_print(self) -> PrintStmt:
         self._expect("KW_PRINT", 'Expected "print"')
-        self._expect("LPAREN", 'Expected "(" after print')
-        expressions = []
+        self._expect("LPAREN",   'Expected "(" after print')
+        arguments = []
         if self.current.type != "RPAREN":
-            expressions = self.lista_expressoes()
-        self._expect("RPAREN", 'Expected ")" after print arguments')
-        self._expect("SEMICOLON", 'Expected ";" after print command')
-        return {"node": "print", "expressions": expressions}
+            arguments = self.lista_expressoes()
+        if len(arguments) == 0:
+            self._error('Expected at least one argument for "print" command')
+        self._expect("RPAREN",   'Expected ")" after print arguments')
+        self._expect("SEMICOLON",'Expected ";" after print command')
+        return PrintStmt(arguments)
 
     # comando_read = "read" "(" variavel ")" ";" ;
-    # Accepts comma-separated variables too, matching the grammar comment.
-    def comando_read(self):
+    def comando_read(self) -> ReadStmt:
         self._expect("KW_READ", 'Expected "read"')
-        self._expect("LPAREN", 'Expected "(" after read')
+        self._expect("LPAREN",  'Expected "(" after read')
+        target = self.variavel()
+        self._expect("RPAREN",  'Expected ")" after read arguments')
+        self._expect("SEMICOLON",'Expected ";" after read command')
+        return ReadStmt(target)
 
-        variable = self.variavel()
-
-        self._expect("RPAREN", 'Expected ")" after read arguments')
-        self._expect("SEMICOLON", 'Expected ";" after read command')
-        return {"node": "read", "variable": variable}
-
-    # variavel = letra { letra | digito } ;
-    # (already constrained by lexer token TK_ID)
-    def variavel(self):
+    # variavel = letra { letra | digito } ;   (garantido pelo lexer como TK_ID)
+    def variavel(self) -> Identifier:
         token = self._expect("TK_ID", "Expected identifier")
-        return {"node": "identifier", "name": token.value}
+        return Identifier(token.value)
 
-    # expressao = expressao_logica ;
-    def expressao(self):
+    # ── expressões (hierarquia de precedência) ────────────────────────────────
+    #
+    # expressao            → expressao_logica
+    # expressao_logica     → termo_logico     { "||" termo_logico }
+    # termo_logico         → fator_logico     { "&&" fator_logico }
+    # fator_logico         → [ "!" ] expressao_relacional
+    # expressao_relacional → expressao_primaria [ relop expressao_primaria ]
+    # expressao_primaria   → expressao_aritmetica | booleano
+    # expressao_aritmetica → termo_aritmetico  { ("+" | "-") termo_aritmetico }
+    # termo_aritmetico     → fator_aritmetico  { ("*" | "/") fator_aritmetico }
+    # fator_aritmetico     → [sinal] inteiro | variavel | "(" expressao ")"
+
+    def expressao(self) -> ASTNode:
         return self.expressao_logica()
 
-    # expressao_logica = termo_logico { "||" termo_logico } ;
-    def expressao_logica(self):
+    # LogicalLevel — menor prioridade
+    def expressao_logica(self) -> ASTNode:
         node = self.termo_logico()
         while True:
             op = self._match("OP_OR")
             if not op:
                 break
             right = self.termo_logico()
-            node = {"node": "binary", "operator": op.value, "left": node, "right": right}
+            node  = BinaryOp(op.value, node, right)
         return node
 
-    # termo_logico = fator_logico { "&&" fator_logico } ;
-    def termo_logico(self):
+    def termo_logico(self) -> ASTNode:
         node = self.fator_logico()
         while True:
             op = self._match("OP_AND")
             if not op:
                 break
             right = self.fator_logico()
-            node = {"node": "binary", "operator": op.value, "left": node, "right": right}
+            node  = BinaryOp(op.value, node, right)
         return node
 
-    # fator_logico = [ "!" ] expressao_relacional ;
-    def fator_logico(self):
-        if self._match("OP_NOT"):
+    # UnaryOp: !
+    def fator_logico(self) -> ASTNode:
+        op = self._match("OP_NOT")
+        if op:
             operand = self.expressao_relacional()
-            return {"node": "unary", "operator": "!", "operand": operand}
+            return UnaryOp("!", operand)
         return self.expressao_relacional()
 
-    # expressao_relacional = expressao_primaria [ operador_relacional expressao_primaria ] ;
-    def expressao_relacional(self):
+    # RelationalLevel
+    def expressao_relacional(self) -> ASTNode:
         left = self.expressao_primaria()
         if self.current.type in RELATIONAL_OPS:
-            op = self._advance()
+            op    = self._advance()
             right = self.expressao_primaria()
-            return {"node": "binary", "operator": op.value, "left": left, "right": right}
+            return BinaryOp(op.value, left, right)
         return left
 
-    # expressao_primaria = expressao_aritmetica | booleano ;
-    def expressao_primaria(self):
+    def expressao_primaria(self) -> ASTNode:
         if self.current.type in {"LIT_TRUE", "LIT_FALSE"}:
             return self.booleano()
         return self.expressao_aritmetica()
 
-    # expressao_aritmetica = termo_aritmetico { ("+" | "-") termo_aritmetico } ;
-    def expressao_aritmetica(self):
+    # AdditiveLevel
+    def expressao_aritmetica(self) -> ASTNode:
         node = self.termo_aritmetico()
         while self.current.type in {"OP_PLUS", "OP_MINUS"}:
-            op = self._advance()
+            op    = self._advance()
             right = self.termo_aritmetico()
-            node = {"node": "binary", "operator": op.value, "left": node, "right": right}
+            node  = BinaryOp(op.value, node, right)
         return node
 
-    # termo_aritmetico = fator_aritmetico { ("*" | "/") fator_aritmetico } ;
-    def termo_aritmetico(self):
+    # MultiplicativeLevel
+    def termo_aritmetico(self) -> ASTNode:
         node = self.fator_aritmetico()
         while self.current.type in {"OP_MULT", "OP_DIV"}:
-            op = self._advance()
+            op    = self._advance()
             right = self.fator_aritmetico()
-            node = {"node": "binary", "operator": op.value, "left": node, "right": right}
+            node  = BinaryOp(op.value, node, right)
         return node
 
-    # fator_aritmetico = inteiro | variavel | "(" expressao ")" ;
-    def fator_aritmetico(self):
-
-        ## se for inteiro -> [ sinal ] sequencia_de_digitos
+    # Factor — maior prioridade
+    def fator_aritmetico(self) -> ASTNode:
+        # UnaryOp: sinal antes de inteiro  (ex: -5  ou  +3)
         sign = self._match("OP_PLUS", "OP_MINUS")
         if sign:
             integer = self._expect("INT_LIT", "Expected integer after sign")
-            value = integer.value if sign.type == "OP_PLUS" else -integer.value
-            return {"node": "int_literal", "value": value}
+            raw_val = integer.value
+            value   = raw_val if sign.type == "OP_PLUS" else -raw_val
+            return Literal("int", value)
 
+        # Literal inteiro sem sinal
         if self.current.type == "INT_LIT":
             token = self._advance()
-            return {"node": "int_literal", "value": token.value}
+            return Literal("int", token.value)
 
-        ## se for variavel -> letra{letra | digito}
+        # Identificador (variável)
         if self.current.type == "TK_ID":
             return self.variavel()
 
+        # Expressão entre parênteses
         if self._match("LPAREN"):
             expr = self.expressao()
             self._expect("RPAREN", 'Expected ")" to close expression')
@@ -279,23 +468,31 @@ class RecursiveDescentParser:
         self._error("Expected integer, identifier or parenthesized expression")
 
     # booleano = "true" | "false" ;
-    def booleano(self):
+    def booleano(self) -> Literal:
         if self._match("LIT_TRUE"):
-            return {"node": "bool_literal", "value": True}
+            return Literal("bool", True)
         if self._match("LIT_FALSE"):
-            return {"node": "bool_literal", "value": False}
+            return Literal("bool", False)
         self._error('Expected "true" or "false"')
 
 
-def parse_source(source: str):
+# =============================================================================
+#  API pública
+# =============================================================================
+
+def parse_source(source: str) -> Program:
     return RecursiveDescentParser(source).parse()
 
+
+# =============================================================================
+#  CLI
+# =============================================================================
 
 if __name__ == "__main__":
     import argparse
     import sys
 
-    cli = argparse.ArgumentParser(description="Recursive descent parser for the toy language.")
+    cli = argparse.ArgumentParser(description="Recursive descent parser — outputs AST as JSON.")
     cli.add_argument("input_file", nargs="?", help="Source file. If omitted, reads stdin.")
     args = cli.parse_args()
 
@@ -311,4 +508,4 @@ if __name__ == "__main__":
         print(f"Syntax error: {exc}", file=sys.stderr)
         raise SystemExit(1)
 
-    print(json.dumps(ast, indent=2))
+    print(json.dumps(ast.to_dict(), indent=2))
