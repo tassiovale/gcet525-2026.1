@@ -7,9 +7,8 @@ class SymbolTable:
 
     def add(self, symbol):
         if symbol.nome in self.symbols:
-            raise Exception(
-                f"Erro: '{symbol.nome}' já declarado no escopo {self.escopo_nome}"
-            )
+            print(f"Erro: '{symbol.nome}' já declarado no escopo {self.escopo_nome}")
+            exit(1)
         self.symbols[symbol.nome] = symbol
 
     def lookup(self, nome):

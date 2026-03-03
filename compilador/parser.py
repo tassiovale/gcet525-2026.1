@@ -210,6 +210,7 @@ class RecursiveDescentParser:
             SimpleNamespace(type="EOF", value=None, lineno=eof_line, lexpos=len(source))
         )
         self.pos = 0
+        self.last_token = None
 
     # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -220,6 +221,7 @@ class RecursiveDescentParser:
     def _advance(self):
         token = self.current
         self.pos += 1
+        self.last_token = token
         return token
 
     def _match(self, *token_types):
@@ -238,6 +240,14 @@ class RecursiveDescentParser:
         found = "EOF" if token.type == "EOF" else f"{token.type} ({token.value!r})"
         print(f"Line {token.lineno}: {message}. Found {found}.")
         exit(1)
+
+    def _expect_semicolon(self, message: str):
+        if self.current.type != "SEMICOLON":
+            prev = self.last_token or self.current
+            found = "EOF" if self.current.type == "EOF" else f"{self.current.type} ({self.current.value!r})"
+            print(f"Line {prev.lineno}: {message}. Found {found}.")
+            exit(1)
+        return self._advance()
 
     # ── ponto de entrada ─────────────────────────────────────────────────────
 
@@ -296,14 +306,14 @@ class RecursiveDescentParser:
             initializer = None
             if self._match("OP_ASSIGN"):
                 initializer = self.expressao()
-            self._expect("SEMICOLON", 'Expected ";" after declaration')
+            self._expect_semicolon('Expected ";" after declaration')
             return VarDecl(var_type, name_node, initializer)
 
         # Atribuição simples
         target = self.variavel()                         # Identifier
         self._expect("OP_ASSIGN", 'Expected "=" in assignment')
         value = self.expressao()
-        self._expect("SEMICOLON", 'Expected ";" after assignment')
+        self._expect_semicolon('Expected ";" after assignment')
         return Assignment(target, value)
 
     # comando_if = "if" "(" expressao ")" bloco [ "else" bloco ] ;
@@ -344,7 +354,7 @@ class RecursiveDescentParser:
         if len(arguments) == 0:
             self._error('Expected at least one argument for "print" command')
         self._expect("RPAREN",   'Expected ")" after print arguments')
-        self._expect("SEMICOLON",'Expected ";" after print command')
+        self._expect_semicolon('Expected ";" after print command')
         return PrintStmt(arguments)
 
     # comando_read = "read" "(" variavel ")" ";" ;
@@ -353,7 +363,7 @@ class RecursiveDescentParser:
         self._expect("LPAREN",  'Expected "(" after read')
         target = self.variavel()
         self._expect("RPAREN",  'Expected ")" after read arguments')
-        self._expect("SEMICOLON",'Expected ";" after read command')
+        self._expect_semicolon('Expected ";" after read command')
         return ReadStmt(target)
 
     # variavel = letra { letra | digito } ;   (garantido pelo lexer como TK_ID)

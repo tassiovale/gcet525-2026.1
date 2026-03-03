@@ -15,7 +15,8 @@ class SymbolTableStack:
 
     def add_symbol(self, nome, tipo, linha):
         if not self.stack:
-            raise Exception("Nenhum escopo ativo")
+            print("Nenhum escopo ativo")
+            exit(1)
         symbol = Symbol(nome, tipo, linha)
         self.stack[-1].add(symbol)
 
@@ -24,7 +25,8 @@ class SymbolTableStack:
             symbol = table.lookup(nome)
             if symbol:
                 return symbol
-        raise Exception(f"Erro: '{nome}' não declarado")
+        print(f"Erro: '{nome}' não declarado")
+        exit(1)
 
     def print_stack(self):
         print("\n--- PILHA DE ESCOPOS ---")
