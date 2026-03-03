@@ -1,0 +1,76 @@
+main {
+int n;
+int i;
+int a;
+int b;
+int temp;
+int sum;
+int max;
+int min;
+
+bool valid;
+bool done;
+bool iseven;
+bool inrange;
+bool okprint;
+
+read(n);
+
+valid = (n >= 1) && (n <= 20);
+
+if (!valid) {
+print(false, n);
+} else {
+
+i = 0;
+sum = 0;
+
+read(a);
+read(b);
+
+max = a;
+min = a;
+
+if (b > max) { max = b; } else { max = max; }
+if (b < min) { min = b; } else { min = min; }
+
+sum = sum + a;
+sum = sum + b;
+
+i = 2;
+done = false;
+
+while (!done) {
+
+if (i >= n) {
+done = true;
+} else {
+
+temp = a + b;
+a = b;
+b = temp;
+
+sum = sum + b;
+
+if (b > max) { max = b; } else { max = max; }
+if (b < min) { min = b; } else { min = min; }
+
+inrange = (b >= 0) && (b <= 1000);
+
+iseven = ((b / 2) * 2) == b;
+
+okprint = inrange && (iseven || (b == 1));
+
+if (okprint) {
+print(i, b, sum, max, min, true);
+} else {
+print(i, b, sum, max, min, false);
+}
+
+i = i + 1;
+}
+}
+
+print(n, sum, max, min);
+}
+}

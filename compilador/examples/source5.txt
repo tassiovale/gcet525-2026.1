@@ -1,0 +1,12 @@
+main {
+int x; int y;
+read(x); read(y);
+
+bool close = ((x - y) <= 2) && ((y - x) <= 2);
+
+if (close) {
+print(true, x, y);
+} else {
+print(false, x, y);
+}
+}

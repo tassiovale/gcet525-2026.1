@@ -1,0 +1,17 @@
+main {
+int x = 0;
+bool stop = false;
+
+while ((x < 20) && (!stop)) {
+print(x);
+
+if (x == 7) {
+stop = true;
+} else {
+stop = stop;
+}
+
+x = x + 3;
+}
+print(stop, x);
+}

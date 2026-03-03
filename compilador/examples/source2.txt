@@ -1,0 +1,13 @@
+main {
+int i = 0;
+int n = 10;
+
+while (i <= n) {
+if ((i == 0) || (i == 5) || (i == 10)) {
+print(i, true);
+} else {
+print(i, false);
+}
+i = i + 1;
+}
+}

@@ -1,0 +1,15 @@
+main {
+int x;
+bool ok = false;
+
+while (!ok) {
+read(x);
+ok = (x >= 1) && (x <= 5);
+
+if (!ok) {
+print(false, x);
+} else {
+print(true, x);
+}
+}
+}

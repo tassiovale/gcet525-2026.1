@@ -1,0 +1,10 @@
+main {
+bool hastoken = true;
+bool isblocked = false;
+
+if (hastoken && !isblocked) {
+print(true);
+} else {
+print(false);
+}
+}

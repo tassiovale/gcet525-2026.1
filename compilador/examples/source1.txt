@@ -1,0 +1,11 @@
+main {
+int x;
+read(x);
+
+bool ok = (x >= 0) && (x <= 100);
+if (ok) {
+print(true, x);
+} else {
+print(false, x);
+}
+}
