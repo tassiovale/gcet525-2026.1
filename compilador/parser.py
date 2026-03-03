@@ -9,10 +9,6 @@ from lexer import build_lexer
 RELATIONAL_OPS = {"OP_EQ", "OP_NE", "OP_GT", "OP_LT", "OP_GE", "OP_LE"}
 
 
-class ParserError(Exception):
-    """Raised when the parser finds invalid syntax."""
-
-
 # =============================================================================
 #  Nós da AST
 #  Cada classe representa um tipo de nó definido no design:
@@ -240,7 +236,8 @@ class RecursiveDescentParser:
     def _error(self, message: str, token=None):
         token = token or self.current
         found = "EOF" if token.type == "EOF" else f"{token.type} ({token.value!r})"
-        raise ParserError(f"Line {token.lineno}: {message}. Found {found}.")
+        print(f"Line {token.lineno}: {message}. Found {found}.")
+        exit(1)
 
     # ── ponto de entrada ─────────────────────────────────────────────────────
 
@@ -504,8 +501,7 @@ if __name__ == "__main__":
 
     try:
         ast = parse_source(source_code)
-    except ParserError as exc:
+    except Exception as exc:
         print(f"Syntax error: {exc}", file=sys.stderr)
-        raise SystemExit(1)
 
     print(json.dumps(ast.to_dict(), indent=2))

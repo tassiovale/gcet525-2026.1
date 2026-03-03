@@ -1,4 +1,4 @@
-from compilador.semantic.symbol import Symbol
+from semantic.symbol import Symbol
 
 class SymbolTable:
     def __init__(self, escopo_nome):

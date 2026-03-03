@@ -1,5 +1,5 @@
-from compilador.semantic.symbol import Symbol
-from compilador.semantic.symbol_table import SymbolTable
+from semantic.symbol import Symbol
+from semantic.symbol_table import SymbolTable
 
 class SymbolTableStack:
     def __init__(self):

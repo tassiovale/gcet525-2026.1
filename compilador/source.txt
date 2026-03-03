@@ -1,0 +1,8 @@
+main 
+{
+  int a = 3;
+  bool b;
+  if (a > 0) {
+    b = true;
+  }
+}
